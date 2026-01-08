@@ -49,3 +49,42 @@ INNER JOIN (
     ON b.bib# = missing_code.bib#
 WHERE b.tag = '049'
 ORDER BY b.bib#;
+```
+
+### Step 2: The Update
+Once the audit is complete, execute the following update script to correct the `049` tags:
+
+```sql
+/* Surgical Update:
+Targets the second instance of a duplicate 049 (via MAX tagord)
+and replaces it with the missing collection code found in the item table.
+*/
+
+UPDATE b
+SET b.text = CHAR(31) + 'a' + missing_code.collection + CHAR(30)
+FROM bib b
+INNER JOIN (
+    -- Identify the higher TagOrd of the duplicate pair
+    SELECT bib#, MAX(tagord) as duplicate_tagord
+    FROM bib
+    WHERE tag = '049'
+    GROUP BY bib#
+    HAVING COUNT(*) = 2 AND MIN(text) = MAX(text)
+) as duplicates 
+    ON b.bib# = duplicates.bib# 
+    AND b.tagord = duplicates.duplicate_tagord
+INNER JOIN (
+    -- Identify the specific collection code that lacks a tag
+    SELECT DISTINCT i.bib#, i.collection
+    FROM item i
+    WHERE NOT EXISTS (
+        SELECT 1 
+        FROM bib b2 
+        WHERE b2.bib# = i.bib# 
+          AND b2.tag = '049' 
+          AND b2.text LIKE '%' + i.collection + '%'
+    )
+) as missing_code 
+    ON b.bib# = missing_code.bib#
+WHERE b.tag = '049';
+```
