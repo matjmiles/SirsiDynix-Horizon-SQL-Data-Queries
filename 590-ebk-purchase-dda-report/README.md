@@ -62,3 +62,8 @@ ORDER BY b.[bib#], b.tagord;
   **and** a `%DDA%` 590; only the matching 590 rows are emitted.
 - Edge case: a single `590` containing both words qualifies the bib and
   appears once.
+- The `DISTINCT [bib#], processed` collapse yields one row per bib only
+  because `processed` is title-level (one `title` row per `bib#` via the
+  view). If `processed` ever differed across item rows for the same bib,
+  that bib would appear more than once — not expected given Horizon's
+  `title`-table join.
